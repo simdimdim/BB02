@@ -1,11 +1,32 @@
 [package]
 authors = ["simdimdim <simdimdim@gmail.com>"]
-name = "ehound"
 default-run = "main"
 edition = "2018"
+name = "ehound"
 resolver = "2"
 version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+reqwest = {version = "0.11.3", features = ["cookies", "stream"]}
+select = "0.6.0-alpha.1"
+url = "2.2.2"
+
+tokio = {version = "1.6.0", features = ["net", "fs", "macros", "rt-multi-thread"]}
+# rayon = "1.5.1"
+serde = {version = "1.0.126", features = ["derive"]}
+serde_json = "1.0.64"
+serde_with = {version = "1.9.1", features = ["json"]}
+
+gfx = "0.18.2"
+gfx_device_gl = "0.16.2"
+piston2d-gfx_graphics = "0.73.0"
+piston2d-graphics = "0.40.0"
+piston_window = {version = "0.120.0", default-features = false}
+pistoncore-window = "0.47.0"
+sdl2 = "0.34.5"
+shader_version = "0.7.0"
+
+[dependencies.pistoncore-sdl2_window]
+git = "https://github.com/PistonDevelopers/sdl2_window"
