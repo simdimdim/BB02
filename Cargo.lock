@@ -276,6 +276,7 @@ version = "0.1.0"
 dependencies = [
  "gfx",
  "gfx_device_gl",
+ "http-serde",
  "piston2d-gfx_graphics",
  "piston2d-graphics",
  "piston_window",
@@ -289,6 +290,7 @@ dependencies = [
  "serde_with",
  "shader_version",
  "tokio",
+ "tokio-serde",
  "url",
 ]
 
@@ -561,6 +563,16 @@ dependencies = [
  "bytes",
  "http",
  "pin-project-lite",
+]
+
+[[package]]
+name = "http-serde"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55db33e92608c6d9b19168e0c3dd22bad81306dc530e8e2acce5647a31023699"
+dependencies = [
+ "http",
+ "serde",
 ]
 
 [[package]]
@@ -1888,6 +1900,18 @@ checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
 dependencies = [
  "native-tls",
  "tokio",
+]
+
+[[package]]
+name = "tokio-serde"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911a61637386b789af998ee23f50aa30d5fd7edcec8d6d3dedae5e5815205466"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project",
 ]
 
 [[package]]
