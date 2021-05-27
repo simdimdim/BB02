@@ -1,12 +1,11 @@
 #![feature(destructuring_assignment)]
 
-use ehound::downloader::Downloader;
+use ehound::{downloader::Downloader, TEST};
 use graphics::clear;
 use piston_window::{
     AdvancedWindow, Button, EventLoop, Key, MouseCursorEvent, MouseScrollEvent, OpenGL,
     PistonWindow, PressEvent, ResizeEvent, Size, Window, WindowSettings,
 };
-use reqwest::Url;
 use sdl2::video::FullscreenType;
 use sdl2_window::Sdl2Window;
 
@@ -33,6 +32,7 @@ async fn main() {
     let mut ctx = window.create_texture_context();
 
     let mut downloader = Downloader::default();
+
     while let Some(e) = window.next() {
         window.draw_2d(&e, |c, g, _device| {
             clear([0.0; 4], g);
@@ -55,7 +55,7 @@ async fn main() {
             if let Button::Keyboard(key) = button {
                 match key {
                     Key::R => downloader.fetch("").await,
-                    Key::C => downloader.download(Url::parse("").unwrap()).await,
+                    Key::C => downloader.download(TEST.parse().unwrap()).await,
                     Key::E => downloader.save().await,
                     Key::D => downloader.load().await,
                     Key::Q => break,

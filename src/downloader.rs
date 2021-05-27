@@ -2,9 +2,12 @@ use reqwest::{
     header::{HeaderMap, HeaderName, REFERER},
     Client, Url,
 };
+use select::{document::Document, predicate::Name};
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map::Entry, BTreeMap};
 use std::{fs::File, io::BufReader};
+
+use crate::library::Library;
 
 impl Default for Downloader {
     fn default() -> Self {
@@ -17,6 +20,7 @@ impl Default for Downloader {
             headers: h,
             sites: s,
             downloader: "/tmp/downloader_headers.json".to_string(),
+            lib: Library::default(),
         }
     }
 }
@@ -32,9 +36,12 @@ impl Default for Headers {
 pub struct Downloader {
     headers: BTreeMap<u32, Headers>,
     sites: BTreeMap<String, Vec<u32>>,
+    // sites: BTreeMap<String, u32>,
     #[serde(skip)]
     client: Client,
+    #[serde(skip)]
     downloader: String,
+    lib: Library,
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct Headers {
@@ -42,7 +49,37 @@ struct Headers {
     headers: HeaderMap,
 }
 impl Downloader {
-    pub async fn download(&self, _url: Url) {}
+    pub async fn download(&mut self, url: Url) {
+        let tag = match self.lib.get_type(&url) {
+            0 => "article",
+            1 => "div",
+            _ => "img",
+        };
+        let html = self
+            .client
+            .get(url.to_string())
+            .send()
+            .await
+            .ok()
+            .unwrap()
+            .text()
+            .await
+            .ok()
+            .unwrap();
+        let doc = Document::from(html.as_str());
+        let tag_count = doc
+            .select(Name(tag))
+            .filter_map(|n| n.attr("src"))
+            .collect::<Vec<_>>()
+            .len();
+        print!("{}", tag_count);
+        print!("{:?}", doc.select(Name(tag)).collect::<Vec<_>>());
+        // let _links: Vec<_> = doc
+        //     .select(Name("img"))
+        //     .filter_map(|n| n.attr("src"))
+        //     // .map(|a| Url::parse(a).unwrap().path().to_string())
+        //     .collect();
+    }
     pub async fn fetch<'a>(&self, _url: &'a str) {}
     pub async fn save(&self) {
         let file = File::with_options()
@@ -80,11 +117,8 @@ impl Downloader {
             .insert(header, value.parse().unwrap());
     }
     pub fn remove_header(&mut self, header: HeaderName, group: u32) {
-        match self.headers.entry(group) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().headers.remove(header);
-            }
-            _ => {}
+        if let Entry::Occupied(mut e) = self.headers.entry(group) {
+            e.get_mut().headers.remove(header);
         }
     }
     pub fn remove_group(&mut self, group: &u32) {

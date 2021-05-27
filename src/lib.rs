@@ -1,32 +1,28 @@
 #![feature(with_options)]
 #![feature(destructuring_assignment)]
 
-use std::path::PathBuf;
-
 pub mod downloader;
+pub mod library;
+
+pub static TEST: &str="https://comrademao.com/mtl/i-was-trapped-on-the-same-day-for-100000-years/the-time-of-rebirth-chapter-1/";
 
 #[cfg(test)]
 mod tests {
-    use crate::downloader::Downloader;
+    use crate::{downloader::Downloader, TEST};
 
     #[tokio::test]
-    async fn it_works() {
+    async fn download() {
+        let mut dl = Downloader::default();
+        dl.download(TEST.parse().unwrap()).await
+    }
+    #[tokio::test]
+    async fn save() {
+        let dl = Downloader::default();
+        dl.save().await;
+    }
+    #[tokio::test]
+    async fn load() {
         let mut dl = Downloader::default();
         dl.load().await;
-        dl.save().await;
-        drop(dl);
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct Book {
-    visual: bool, //true = manga, false - text
-    chapters: Vec<Content>,
-}
-#[derive(Debug, Clone)]
-pub struct Chapter {
-    n: u16,
-    contents: Vec<Content>,
-}
-#[derive(Debug, Clone)]
-pub struct Content(u8, PathBuf);
