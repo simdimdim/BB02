@@ -1,6 +1,6 @@
 #![feature(destructuring_assignment)]
 
-use ehound::{downloader::Downloader, TEST};
+use ehound::downloader::Downloader;
 use graphics::clear;
 use piston_window::{
     AdvancedWindow,
@@ -64,7 +64,7 @@ async fn main() {
             if let Button::Keyboard(key) = button {
                 match key {
                     Key::R => downloader.fetch("").await,
-                    Key::C => downloader.download(TEST.parse().unwrap()).await,
+                    // Key::C => downloader.download(TEST.parse().unwrap()).await,
                     Key::E => downloader.save().await,
                     Key::D => downloader.load().await,
                     Key::Q => break,

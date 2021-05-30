@@ -1,115 +1,144 @@
+use crate::source::Source;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
+    convert::Infallible,
+    hash::{Hash, Hasher},
+    ops::Deref,
     path::PathBuf,
+    str::FromStr,
 };
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Library {
-    //BookMap<Name,(Contents, Sources)>
-    pub books: BTreeMap<String, (Book, Vec<usize>)>,
-    sites:     BTreeMap<String, usize>,
-    site_type: BTreeMap<usize, u8>,
+    pub books: BTreeMap<Book, Source>,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Ord, PartialOrd, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Book {
-    visual:   bool, //false - text, true = manga
-    chapters: Vec<Content>,
+    pub name: BookName,
+    chapters: BTreeMap<u16, Chapter>,
+    visual:   bool,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
+)]
 pub struct Chapter {
-    n:        u16,
-    contents: Vec<Content>,
+    page:    Source,
+    content: BTreeMap<u8, Content>,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct Content(u8, PathBuf);
+#[derive(
+    Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
+)]
+pub struct Content(PathBuf);
+#[derive(
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Default,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+)]
+pub struct BookName(String);
 
 impl Library {
     pub fn add_book(
         &mut self,
         book: String,
-        sites: Option<Vec<String>>,
+        site: Option<String>,
     ) {
-        let mut v = vec![];
-        if let Some(s) = sites {
-            for e in s {
-                v.push(self.add_site(&e.parse::<Url>().unwrap()));
-            }
-        }
+        let mut book: Book = book.into();
+        site.clone().and_then(|a| Some(book.check_visual(&a)));
         if let Entry::Occupied(mut e) = self.books.entry(book) {
-            *e.get_mut() = (Book::default(), v);
+            *e.get_mut() = site.and_then(|a| Some(a.into())).unwrap();
         };
     }
 
-    pub fn add_source(
+    pub fn set_source(
         &mut self,
         book: String,
-        url: Url,
+        url: Option<String>,
     ) {
-        let s = self.add_site(&url);
-        if let Entry::Occupied(mut e) = self.books.entry(book.clone()) {
-            e.get_mut().1.push(s);
-        } else {
-            self.add_book(book, Some(vec![url.to_string()]));
-        }
-        self.sites.insert(url.to_string(), self.sites.len());
-    }
-
-    pub fn add_site(
-        &mut self,
-        url: &Url,
-    ) -> usize {
-        let l = self.sites.len();
-        *self.sites.entry(url.to_string()).or_insert(l)
-    }
-
-    pub fn remove_book(
-        &mut self,
-        book: &String,
-    ) {
-        self.books.remove(book);
-    }
-
-    pub fn remove_site(
-        &mut self,
-        book: String,
-        url: &Url,
-    ) {
-        if let Entry::Occupied(mut e) = self.books.entry(book) {
-            let sitenum = self.sites.get(&url.to_string()).unwrap();
-            e.get_mut().1.retain(|x| x != sitenum);
+        match (self.books.entry(book.into()), url) {
+            (Entry::Occupied(mut e), Some(u)) => *e.get_mut() = u.into(),
+            (Entry::Occupied(mut e), None) => *e.get_mut() = Default::default(),
+            _ => {}
         }
     }
-
-    pub fn get_type(
+}
+impl Book {
+    pub fn check_visual(
         &mut self,
-        url: &Url,
-    ) -> u8 {
-        let k = self.add_site(&self.parse(url));
-        *self.site_type.entry(k).or_default()
+        url: &String,
+    ) {
+        let t = vec!["novel", "royalroad", "comrademao"];
+        let p = vec!["manga", "hentai", "pururin", "luscious"];
+        let f = |s: &&str| -> bool {
+            url.parse::<Url>()
+                .unwrap()
+                .origin()
+                .ascii_serialization()
+                .contains(s)
+        };
+        self.visual = t.iter().any(|s| f(s)) || p.iter().any(|s| f(s));
     }
 
-    fn parse(
-        &self,
-        url: &Url,
-    ) -> Url {
-        let u1 = url.to_string();
-        let u2 = u1.split('/').into_iter().collect::<Vec<&str>>();
-        u2[..3].join("/").parse().unwrap()
+    pub fn set_visual(
+        &mut self,
+        visual: bool,
+    ) {
+        self.visual = visual;
     }
-
-    pub fn get_site(
+}
+impl Chapter {
+    #[allow(dead_code)]
+    fn find_index(&self) { self.page.location.parse::<Url>().unwrap().path(); }
+}
+impl PartialEq for Book {
+    fn eq(
         &self,
-        val: &usize,
-    ) -> Url {
-        let x = self
-            .sites
-            .iter()
-            .find(|(_, v)| v == &val)
-            .unwrap()
-            .0
-            .to_string();
-        x.parse().unwrap()
+        other: &Self,
+    ) -> bool {
+        self.name == other.name
+    }
+}
+impl Hash for Book {
+    fn hash<H: Hasher>(
+        &self,
+        state: &mut H,
+    ) {
+        self.name.hash(state);
+    }
+}
+
+impl From<String> for Book {
+    fn from(name: String) -> Self {
+        let mut book: Self = name.clone().into();
+        book.check_visual(&name);
+        book
+    }
+}
+impl From<String> for BookName {
+    fn from(name: String) -> Self { Self(name) }
+}
+impl Deref for Book {
+    type Target = BookName;
+
+    fn deref<'a>(&'a self) -> &'a BookName { &self.name }
+}
+impl Deref for BookName {
+    type Target = String;
+
+    fn deref<'a>(&'a self) -> &'a String { &self.0 }
+}
+impl FromStr for BookName {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(BookName(s.to_string()))
     }
 }
