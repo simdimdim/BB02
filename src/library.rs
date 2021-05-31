@@ -8,6 +8,7 @@ use std::{
     ops::Deref,
     path::PathBuf,
     str::FromStr,
+    u8,
 };
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -19,14 +20,18 @@ pub struct Book {
     pub name: BookName,
     chapters: BTreeMap<u16, Chapter>,
     visual:   bool,
+    position: u16,
 }
+//TODO: implement Default Chapter
 #[derive(
     Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
 )]
 pub struct Chapter {
-    page:    Source,
-    content: BTreeMap<u8, Content>,
+    page:     Source,
+    content:  BTreeMap<u8, Content>,
+    position: u16,
 }
+//TODO: implement Default Content
 #[derive(
     Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
 )]
@@ -93,10 +98,28 @@ impl Book {
     ) {
         self.visual = visual;
     }
+
+    pub fn get(
+        &mut self,
+        chapter: u16,
+    ) -> Option<Chapter> {
+        let e = self.chapters.get(&chapter).cloned();
+        e.is_some().then(|| self.position = chapter);
+        e
+    }
 }
 impl Chapter {
     #[allow(dead_code)]
     fn find_index(&self) { self.page.location.parse::<Url>().unwrap().path(); }
+
+    pub fn get(
+        &mut self,
+        page: u8,
+    ) -> Option<Content> {
+        let e = self.content.get(&page).cloned();
+        e.is_some().then(|| self.position = page as u16);
+        e
+    }
 }
 impl PartialEq for Book {
     fn eq(
