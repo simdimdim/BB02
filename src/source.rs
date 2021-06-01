@@ -1,4 +1,4 @@
-use reqwest::Client;
+use reqwest::{Client, Url};
 use select::{
     document::Document,
     predicate::{Child, Descendant, Name, Or, Text},
@@ -42,6 +42,38 @@ impl Source {
             .ok()
             .unwrap();
         (Some(html.clone().as_str().into()), Some(html))
+    }
+
+    pub async fn refresh(
+        &mut self,
+        url: Option<String>,
+    ) {
+        (self.doc, self.html) =
+            Self::download(&url.unwrap_or(self.location.clone()), &Client::new())
+                .await;
+    }
+
+    #[allow(dead_code)]
+    fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }
+
+    pub fn check_visual(&mut self) -> bool {
+        let t = vec!["novel", "royalroad", "comrademao"];
+        let p = vec!["manga", "hentai", "pururin", "luscious"];
+        let f = |s: &&str| -> bool {
+            self.location
+                .parse::<Url>()
+                .unwrap()
+                .origin()
+                .ascii_serialization()
+                .contains(s)
+        };
+        t.iter().any(|s| f(s)) || p.iter().any(|s| f(s))
+    }
+
+    /// Returns the biggest congregation of links in the html
+    pub async fn source(&self) -> Self {
+        todo!();
+        // else Self::default()
     }
 
     /// Returns the biggest congregation of links in the html

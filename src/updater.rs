@@ -22,7 +22,7 @@ impl Updater {
                 // self.dl.download(site);
                 #[allow(path_statements)]
                 {
-                    b.name.clone().as_str();
+                    b.clone().as_str();
                 }
             });
     }
