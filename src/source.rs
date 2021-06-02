@@ -31,6 +31,16 @@ impl Source {
         }
     }
 
+    pub async fn get(
+        &self,
+        visual: bool,
+    ) -> Option<Vec<String>> {
+        match visual {
+            true => self.images_batch().await,
+            false => self.text().await,
+        }
+    }
+
     pub async fn download(
         url: &String,
         client: &Client,
@@ -60,7 +70,7 @@ impl Source {
     #[allow(dead_code)]
     fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }
 
-    pub async fn check_visual(&self) -> bool {
+    pub async fn check_visual(&self) -> Option<bool> {
         let t = vec!["novel", "royalroad", "comrademao"];
         let p = vec!["manga", "hentai", "pururin", "luscious"];
         let f = |s: &&str| -> bool {
@@ -71,12 +81,12 @@ impl Source {
                 .ascii_serialization()
                 .contains(s)
         };
-        match (t.iter().any(|s| f(s)), p.iter().any(|s| f(s))) {
+        Some(match (t.iter().any(|s| f(s)), p.iter().any(|s| f(s))) {
             (true, true) => self.text().await.unwrap().len() < 20,
             (true, false) => false,
             (false, true) => true,
             (false, false) => self.text().await.unwrap().len() < 20,
-        }
+        })
     }
 
     /// Returns something that looks like a book title
@@ -197,4 +207,16 @@ impl From<String> for Source {
             doc:      None,
         }
     }
+}
+impl From<&String> for Source {
+    fn from(url: &String) -> Self {
+        Self {
+            location: url.clone(),
+            html:     None,
+            doc:      None,
+        }
+    }
+}
+impl AsRef<Source> for Source {
+    fn as_ref(&self) -> &Source { self }
 }

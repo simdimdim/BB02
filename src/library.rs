@@ -2,7 +2,9 @@ use crate::source::Source;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
+    fs::File,
     hash::{Hash, Hasher},
+    io::Write,
     ops::Deref,
     path::PathBuf,
     u8,
@@ -17,7 +19,7 @@ pub struct Book {
     pub name:  BookName,
     pub index: Source,
     chapters:  BTreeMap<u16, Chapter>,
-    visual:    bool,
+    visual:    Option<bool>,
     pub pos:   u16,
 }
 //TODO: implement Default Chapter
@@ -46,7 +48,7 @@ pub struct BookName(String);
 #[derive(
     Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
 )]
-pub struct Content(u16, PathBuf);
+pub struct Content(pub u16, pub PathBuf);
 
 impl Library {
     pub async fn get(
@@ -117,15 +119,19 @@ impl Book {
         &mut self,
         visual: Option<bool>,
     ) {
-        self.visual = visual.unwrap_or(self.index.check_visual().await);
+        match visual {
+            Some(_) => self.visual = visual,
+            None => self.visual = self.index.check_visual().await,
+        }
     }
+
+    pub fn visual(&self) -> Option<bool> { self.visual }
 
     pub async fn add_chapter(
         &mut self,
-        ch: Source,
+        ch: Chapter,
     ) -> Option<Chapter> {
-        self.chapters
-            .insert(ch.num(), Chapter::from_source(ch, self.visual).await)
+        self.chapters.insert(ch.num(), ch)
     }
 
     pub fn remove_chapter(
@@ -211,20 +217,19 @@ impl Chapter {
             None => Content::default(),
         }
     }
-
-    pub async fn from_source(
-        src: Source,
-        visual: bool,
-    ) -> Self {
-        let content = match visual {
-            true => src.images_batch().await,
-            false => src.text().await,
-        };
-        // TODO: the rest of this
-        Self {
-            page: src,
-            ..Default::default()
-        }
+}
+impl Content {
+    pub fn save(
+        &self,
+        data: &[u8],
+    ) {
+        File::with_options()
+            .write(true)
+            .create(true)
+            .open(&self.1.join(format!("{}", self.0)))
+            .unwrap()
+            .write(data)
+            .unwrap();
     }
 }
 

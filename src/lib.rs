@@ -2,8 +2,8 @@
 #![feature(bool_to_option)]
 #![feature(destructuring_assignment)]
 
-pub mod downloader;
 pub mod library;
+pub mod retriever;
 pub mod source;
 pub mod update;
 

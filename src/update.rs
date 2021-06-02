@@ -1,16 +1,15 @@
 use crate::{
-    downloader::Downloader,
     library::{Book, BookName, Chapter, Library},
+    retriever::Retriever,
     source::{Site, Source},
 };
 use futures::future::join_all;
-use reqwest::{header::HeaderMap, Client, Url};
-use std::{collections::BTreeMap, fs::File, io::Write, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Default, Debug)]
 pub struct Manager {
-    dl:    Downloader,
+    dl:    Retriever,
     lib:   Library,
     sites: BTreeMap<Site, BookName>,
 }
@@ -28,31 +27,23 @@ impl Manager {
         );
         book.set_visual(None).await;
         let book = Arc::new(Mutex::new(book));
-
-        // for ch in source
-        //     .chapters()
-        //     .await
-        //     .unwrap_or_default()
-        //     .iter()
-        //     .cloned()
-        //     .map(|c| Into::<Source>::into(c))
-        // {
-        //     book.add_chapter(ch).await;
-        // }
-
-        let _ = join_all(
+        #[allow(unused_mut)]
+        let mut chapters: Vec<Chapter> = join_all(
             source
                 .chapters()
                 .await
                 .unwrap_or_default()
                 .iter()
                 .cloned()
-                .map(|c| Into::<Source>::into(c))
-                .map(|ch| async {
-                    book.lock().await.add_chapter(ch).await;
-                }),
-        );
-        let _chapters: Vec<Chapter>;
+                .map(|url| async { self.dl.chapter(url.into(), None).await }),
+        )
+        .await;
+        // join_all(chapters.iter_mut().map(|ch| ch.add_content(content))).await;
+        join_all(chapters.iter().cloned().map(|ch| async {
+            let mut book = book.lock().await;
+            book.add_chapter(ch).await;
+        }))
+        .await;
     }
 
     pub async fn refresh(&mut self) {
@@ -70,27 +61,5 @@ impl Manager {
                     &self.sites;
                 }
             });
-    }
-
-    async fn _save_image(
-        &mut self,
-        client: Client,
-        url: Url,
-        headers: HeaderMap,
-        file: &mut File,
-    ) -> Result<usize, std::io::Error> {
-        file.write(
-            &client
-                .get(url.to_string())
-                .headers(headers)
-                .send()
-                .await
-                .ok()
-                .unwrap()
-                .bytes()
-                .await
-                .ok()
-                .unwrap(),
-        )
     }
 }
