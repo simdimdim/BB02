@@ -82,12 +82,12 @@ impl Retriever {
                 .await
                 .iter()
                 .cloned()
-                .for_each(|content| {
+                .for_each(|mut content| {
+                    content.1 = content.1.join(format!("{}", src.num()));
                     ch.add_content(content);
                 });
             }
             false => {
-                #[allow(unused_variables)]
                 let cnt = self.content(&src.location, false).await;
                 ch.add_content(cnt);
             }
@@ -104,14 +104,43 @@ impl Retriever {
         let src: Source = s.into();
         let mut cnt = Content::default();
         cnt.0 = src.num().into();
+        cnt.1 = cnt.1.join(format!("{}", src.num()));
         match visual {
-            true => todo!(),
+            true => {
+                cnt.file()
+                    .write(
+                        &self
+                            .client
+                            .get(s)
+                            .headers(
+                                self.headers
+                                    .get(
+                                        &s.parse::<Url>()
+                                            .unwrap()
+                                            .domain()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .unwrap_or(&Headers::default())
+                                    .clone()
+                                    .headers,
+                            )
+                            .send()
+                            .await
+                            .ok()
+                            .unwrap()
+                            .bytes()
+                            .await
+                            .ok()
+                            .unwrap(),
+                    )
+                    .unwrap();
+            }
             false => {
                 let text = src.text().await.unwrap_or_default().join("\n\n");
                 cnt.save(text.as_bytes());
             }
         }
-        // TODO: cnt.1=save loc
         cnt
     }
 
@@ -131,39 +160,5 @@ impl Retriever {
             .expect("The json has most likely been corrupted.");
         let Self { headers: h, .. } = serde_json::from_str(&contents).unwrap();
         self.headers = h;
-    }
-
-    async fn _save_image(
-        &mut self,
-        url: String,
-        file: &mut File,
-    ) -> usize {
-        file.write(
-            &self
-                .client
-                .get(&url)
-                .headers(
-                    self.headers
-                        .get(
-                            &url.parse::<Url>()
-                                .unwrap()
-                                .domain()
-                                .unwrap()
-                                .to_string(),
-                        )
-                        .unwrap_or(&Headers::default())
-                        .clone()
-                        .headers,
-                )
-                .send()
-                .await
-                .ok()
-                .unwrap()
-                .bytes()
-                .await
-                .ok()
-                .unwrap(),
-        )
-        .unwrap()
     }
 }

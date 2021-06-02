@@ -231,6 +231,14 @@ impl Content {
             .write(data)
             .unwrap();
     }
+
+    pub fn file(&self) -> File {
+        File::with_options()
+            .write(true)
+            .create(true)
+            .open(&self.1.join(format!("{}", self.0)))
+            .unwrap()
+    }
 }
 
 impl PartialEq for Book {
