@@ -1,6 +1,6 @@
 #![feature(destructuring_assignment)]
 
-use ehound::downloader::Downloader;
+use ehound::update::Manager;
 use graphics::clear;
 use piston_window::{
     AdvancedWindow,
@@ -43,7 +43,7 @@ async fn main() {
     #[allow(unused_mut)]
     let mut ctx = window.create_texture_context();
 
-    let mut downloader = Downloader::default();
+    let mut manager = Manager::default();
 
     while let Some(e) = window.next() {
         window.draw_2d(&e, |c, g, _device| {
@@ -63,10 +63,7 @@ async fn main() {
         if let Some(button) = e.press_args() {
             if let Button::Keyboard(key) = button {
                 match key {
-                    Key::R => downloader.fetch("").await,
-                    // Key::C => downloader.download(TEST.parse().unwrap()).await,
-                    Key::E => downloader.save().await,
-                    Key::D => downloader.load().await,
+                    Key::R => manager.refresh().await,
                     Key::Q => break,
                     Key::F | Key::F12 => fullscreen(&mut window),
                     _ => {}

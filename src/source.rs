@@ -5,6 +5,8 @@ use select::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::library::BookName;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Source {
     pub location: String,
@@ -13,8 +15,10 @@ pub struct Source {
     doc:          Option<Document>,
 }
 
+#[derive(Default, Ord, PartialEq, PartialOrd, Eq, Debug, Clone)]
 pub struct Site {
-    _pred: String,
+    pub location: String,
+    pub pred:     String,
 }
 
 impl Source {
@@ -56,7 +60,7 @@ impl Source {
     #[allow(dead_code)]
     fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }
 
-    pub fn check_visual(&mut self) -> bool {
+    pub async fn check_visual(&self) -> bool {
         let t = vec!["novel", "royalroad", "comrademao"];
         let p = vec!["manga", "hentai", "pururin", "luscious"];
         let f = |s: &&str| -> bool {
@@ -67,17 +71,30 @@ impl Source {
                 .ascii_serialization()
                 .contains(s)
         };
-        t.iter().any(|s| f(s)) || p.iter().any(|s| f(s))
+        match (t.iter().any(|s| f(s)), p.iter().any(|s| f(s))) {
+            (true, true) => self.text().await.unwrap().len() < 20,
+            (true, false) => false,
+            (false, true) => true,
+            (false, false) => self.text().await.unwrap().len() < 20,
+        }
     }
 
-    /// Returns the biggest congregation of links in the html
-    pub async fn source(&self) -> Self {
+    /// Returns something that looks like a book title
+    pub async fn title(&self) -> BookName {
+        todo!();
+        // else Self::default()
+    }
+
+    pub async fn pos(&self) -> u16 { 0 }
+
+    /// Returns a Source leading the the index page of the chapter
+    pub async fn index(&self) -> Self {
         todo!();
         // else Self::default()
     }
 
     /// Returns the biggest congregation of links in the html
-    pub async fn index(&self) -> Option<Vec<String>> {
+    pub async fn chapters(&self) -> Option<Vec<String>> {
         self.doc.as_ref().map(|a| {
             a.select(Descendant(
                 Name("div"),
@@ -93,6 +110,18 @@ impl Source {
         })
         /* TODO: Add a similarity check and only return the biggest cluster of similar
         links */
+    }
+
+    pub async fn next(
+        &self,
+        pred: &str,
+    ) -> Option<String> {
+        self.doc.as_ref().and_then(|a| {
+            a.select(Child(Name("a"), Text))
+                .filter(|a| a.text().contains(pred))
+                .map(|a| a.parent().unwrap().attr("href").unwrap().to_string())
+                .next()
+        })
     }
 
     /// Returns the text from the children of the <div> with most <p> tags
@@ -132,17 +161,7 @@ impl Source {
         }
     }
 
-    pub async fn next(
-        &self,
-        pred: &str,
-    ) -> Option<String> {
-        self.doc.as_ref().and_then(|a| {
-            a.select(Child(Name("a"), Text))
-                .filter(|a| a.text().contains(pred))
-                .map(|a| a.parent().unwrap().attr("href").unwrap().to_string())
-                .next()
-        })
-    }
+    pub fn num(&self) -> u16 { todo!() }
 }
 
 impl PartialOrd for Source {

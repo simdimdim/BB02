@@ -10,24 +10,24 @@ use std::{
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Library {
-    pub books: BTreeMap<BookName, (Book, Source)>,
+    pub books: BTreeMap<BookName, Book>,
 }
 #[derive(Default, Ord, PartialOrd, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Book {
-    pub name: BookName,
-    index:    Source,
-    chapters: BTreeMap<u16, Chapter>,
-    visual:   bool,
-    pub pos:  u16,
+    pub name:  BookName,
+    pub index: Source,
+    chapters:  BTreeMap<u16, Chapter>,
+    visual:    bool,
+    pub pos:   u16,
 }
 //TODO: implement Default Chapter
 #[derive(
     Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
 )]
 pub struct Chapter {
-    page:    Source,
-    content: BTreeMap<u16, Content>,
-    pub pos: u16,
+    pub page: Source,
+    content:  BTreeMap<u16, Content>,
+    pub pos:  u16,
 }
 #[derive(
     Hash,
@@ -42,7 +42,7 @@ pub struct Chapter {
     Deserialize,
 )]
 pub struct BookName(String);
-//TODO: implement Default Content
+//TODO: implement Default for Content
 #[derive(
     Default, Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize,
 )]
@@ -52,24 +52,36 @@ impl Library {
     pub async fn get(
         &self,
         book: &BookName,
-    ) -> Option<&(Book, Source)> {
+    ) -> Option<&Book> {
         self.books.get(book)
+    }
+
+    pub fn rename_book(
+        &mut self,
+        old: &BookName,
+        new_name: BookName,
+    ) {
+        if self.books.contains_key(old) {
+            let mut book = self.books.remove(old).unwrap();
+            book.name = new_name.clone();
+            self.books.insert(new_name, book);
+        }
     }
 
     pub async fn add_book(
         &mut self,
         book: BookName,
         site: Option<String>,
-    ) -> &mut (Book, Source) {
+    ) -> &mut Book {
         if let Some(s) = &site {
             let mut src: Source = s.clone().into();
             src.refresh(None).await;
             let b = Book {
                 name: book.clone(),
-                index: src.source().await,
+                index: src.index().await,
                 ..Default::default()
             };
-            self.books.entry(book).or_insert((b, src))
+            self.books.entry(book).or_insert(b)
         } else {
             self.books.entry(book).or_default()
         }
@@ -89,7 +101,7 @@ impl Library {
     ) {
         match (self.books.entry(book), url) {
             (Entry::Occupied(mut e), Some(url)) => {
-                e.get_mut().1 = {
+                e.get_mut().index = {
                     let mut source: Source = url.into();
                     source.refresh(None).await;
                     source
@@ -101,18 +113,19 @@ impl Library {
     }
 }
 impl Book {
-    pub fn set_visual(
+    pub async fn set_visual(
         &mut self,
         visual: Option<bool>,
     ) {
-        self.visual = visual.unwrap_or(self.index.check_visual());
+        self.visual = visual.unwrap_or(self.index.check_visual().await);
     }
 
-    pub fn add_chapter(
+    pub async fn add_chapter(
         &mut self,
-        ch: Chapter,
+        ch: Source,
     ) -> Option<Chapter> {
-        self.chapters.insert(ch.num(), ch)
+        self.chapters
+            .insert(ch.num(), Chapter::from_source(ch, self.visual).await)
     }
 
     pub fn remove_chapter(
@@ -120,6 +133,13 @@ impl Book {
         ch: Chapter,
     ) -> Option<Chapter> {
         self.chapters.remove(&ch.num())
+    }
+
+    pub fn get(
+        &mut self,
+        ch: u16,
+    ) -> Option<&Chapter> {
+        self.chapters.get(&ch)
     }
 
     pub fn seek(
@@ -160,7 +180,14 @@ impl Chapter {
         self.content.remove(&content.0)
     }
 
-    pub fn num(&self) -> u16 { 0 }
+    pub fn get(
+        &mut self,
+        p: u16,
+    ) -> Option<&Content> {
+        self.content.get(&p)
+    }
+
+    pub fn num(&self) -> u16 { self.page.num() }
 
     pub fn seek(
         &mut self,
@@ -182,6 +209,21 @@ impl Chapter {
         match self.seek(self.pos.saturating_add(1)) {
             Some(c) => c,
             None => Content::default(),
+        }
+    }
+
+    pub async fn from_source(
+        src: Source,
+        visual: bool,
+    ) -> Self {
+        let content = match visual {
+            true => src.images_batch().await,
+            false => src.text().await,
+        };
+        // TODO: the rest of this
+        Self {
+            page: src,
+            ..Default::default()
         }
     }
 }

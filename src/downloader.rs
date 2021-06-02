@@ -47,9 +47,9 @@ struct Headers {
 }
 
 impl Downloader {
-    pub async fn fetch<'a>(
+    pub async fn download(
         &self,
-        _url: &'a str,
+        _url: String,
     ) {
     }
 
