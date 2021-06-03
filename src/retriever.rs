@@ -9,11 +9,7 @@ use reqwest::{
     Url,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::{BufReader, Write},
-};
+use std::{collections::BTreeMap, fs::File, io::BufReader};
 
 impl Default for Retriever {
     fn default() -> Self {
@@ -107,34 +103,20 @@ impl Retriever {
         cnt.1 = cnt.1.join(format!("{}", src.num()));
         match visual {
             true => {
-                cnt.file()
-                    .write(
-                        &self
-                            .client
-                            .get(s)
-                            .headers(
-                                self.headers
-                                    .get(
-                                        &s.parse::<Url>()
-                                            .unwrap()
-                                            .domain()
-                                            .unwrap()
-                                            .to_string(),
-                                    )
-                                    .unwrap_or(&Headers::default())
-                                    .clone()
-                                    .headers,
-                            )
-                            .send()
-                            .await
-                            .ok()
-                            .unwrap()
-                            .bytes()
-                            .await
-                            .ok()
-                            .unwrap(),
-                    )
-                    .unwrap();
+                cnt.save(
+                    &self
+                        .client
+                        .get(s)
+                        .headers(self.get_headers(s))
+                        .send()
+                        .await
+                        .ok()
+                        .unwrap()
+                        .bytes()
+                        .await
+                        .ok()
+                        .unwrap(),
+                );
             }
             false => {
                 let text = src.text().await.unwrap_or_default().join("\n\n");
@@ -160,5 +142,16 @@ impl Retriever {
             .expect("The json has most likely been corrupted.");
         let Self { headers: h, .. } = serde_json::from_str(&contents).unwrap();
         self.headers = h;
+    }
+
+    fn get_headers(
+        &self,
+        src: &String,
+    ) -> HeaderMap {
+        self.headers
+            .get(src.parse::<Url>().unwrap().domain().unwrap())
+            .cloned()
+            .unwrap_or_default()
+            .headers
     }
 }

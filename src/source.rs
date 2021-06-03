@@ -13,6 +13,8 @@ pub struct Source {
     html:         Option<String>,
     #[serde(skip)]
     doc:          Option<Document>,
+    #[serde(skip)]
+    place:        Place,
 }
 
 #[derive(Default, Ord, PartialEq, PartialOrd, Eq, Debug, Clone)]
@@ -20,6 +22,8 @@ pub struct Site {
     pub location: String,
     pub pred:     String,
 }
+#[derive(Default, Debug, Clone)]
+pub struct Place(pub u16, pub u16, String);
 
 impl Source {
     pub async fn new(url: String) -> Self {
@@ -28,6 +32,7 @@ impl Source {
             location: url,
             html,
             doc,
+            place: Place::default(),
         }
     }
 
@@ -91,11 +96,43 @@ impl Source {
 
     /// Returns something that looks like a book title
     pub async fn title(&self) -> BookName {
-        todo!();
-        // else Self::default()
+        self.doc
+            .as_ref()
+            .unwrap()
+            .select(Name("title"))
+            .into_selection()
+            .first()
+            .unwrap()
+            .text()
+            .into()
     }
 
-    pub async fn pos(&self) -> u16 { 0 }
+    pub async fn place(&mut self) {
+        let url = self.location.parse::<Url>().expect("Not a Url string.");
+        let segments = url.path_segments().unwrap().rev().collect::<Vec<_>>();
+        self.place = match (
+            &segments
+                .iter()
+                .map(|a| {
+                    a.matches(char::is_numeric)
+                        .collect::<Vec<&str>>()
+                        .join("")
+                        .parse::<u16>()
+                        .unwrap()
+                })
+                .collect::<Vec<u16>>()[..2],
+            segments.iter().last(),
+        ) {
+            ([x @ 0..=9000, y @ 0..=9000], Some(&z)) => {
+                Place(*x, *y, z.to_string())
+            }
+            ([x @ 0..=9000], Some(z)) => Place(0, *x, z.to_string()),
+            ([], Some(z)) => Place(0, 0, z.to_string()),
+            _ => Place::default(),
+        };
+    }
+
+    pub async fn pos(&self) -> u16 { self.place.0 }
 
     /// Returns a Source leading the the index page of the chapter
     pub async fn index(&self) -> Self {
@@ -174,12 +211,13 @@ impl Source {
     pub fn num(&self) -> u16 { todo!() }
 }
 
-impl PartialOrd for Source {
-    fn partial_cmp(
+impl Eq for Source {}
+impl PartialEq for Source {
+    fn eq(
         &self,
         other: &Self,
-    ) -> Option<std::cmp::Ordering> {
-        Some(self.location.cmp(&other.location))
+    ) -> bool {
+        self.location == other.location && self.html == other.html
     }
 }
 impl Ord for Source {
@@ -190,13 +228,12 @@ impl Ord for Source {
         self.location.cmp(&other.location)
     }
 }
-impl Eq for Source {}
-impl PartialEq for Source {
-    fn eq(
+impl PartialOrd for Source {
+    fn partial_cmp(
         &self,
         other: &Self,
-    ) -> bool {
-        self.location == other.location && self.html == other.html
+    ) -> Option<std::cmp::Ordering> {
+        Some(self.location.cmp(&other.location))
     }
 }
 impl From<String> for Source {
@@ -205,6 +242,7 @@ impl From<String> for Source {
             location: url,
             html:     None,
             doc:      None,
+            place:    Place::default(),
         }
     }
 }
@@ -214,6 +252,7 @@ impl From<&String> for Source {
             location: url.clone(),
             html:     None,
             doc:      None,
+            place:    Place::default(),
         }
     }
 }

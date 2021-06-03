@@ -73,10 +73,9 @@ impl Library {
     pub async fn add_book(
         &mut self,
         book: BookName,
-        site: Option<String>,
+        site: Option<Source>,
     ) -> &mut Book {
-        if let Some(s) = &site {
-            let mut src: Source = s.clone().into();
+        if let Some(mut src) = site.clone() {
             src.refresh(None).await;
             let b = Book {
                 name: book.clone(),
