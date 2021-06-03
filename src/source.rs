@@ -104,7 +104,29 @@ impl Source {
             .first()
             .unwrap()
             .text()
+            .split(" Chapter")
+            .filter(|&a| a != "")
+            .collect::<Vec<_>>()
+            .first()
+            .unwrap()
+            .to_string()
             .into()
+        // .to_ascii_lowercase()
+        // .split(" chapter")
+        // .filter(|&a| a != "")
+        // .collect::<Vec<_>>()
+        // .first()
+        // .unwrap()
+        // .chars()
+        // .fold(String::new(), |mut acc, s| {
+        //     if acc.is_empty() || "- ".contains(acc.chars().last().unwrap()) {
+        //         acc.extend(s.to_uppercase());
+        //     } else {
+        //         acc.push(s);
+        //     }
+        //     acc
+        // })
+        // .into()
     }
 
     pub async fn place(&mut self) {
@@ -136,8 +158,32 @@ impl Source {
 
     /// Returns a Source leading the the index page of the chapter
     pub async fn index(&self) -> Self {
-        todo!();
-        // else Self::default()
+        let url = self.location.parse::<Url>().expect("Not a Url string.");
+        let base = url.origin().ascii_serialization();
+        let mut index = url
+            .path_segments()
+            .unwrap()
+            .rev()
+            .fold((Vec::new(), 0, 0), |mut acc, s| {
+                if s.to_lowercase().contains("chapter") {
+                    acc.1 += 1;
+                } else {
+                    if acc.1 != 0 || acc.2 > 1 {
+                        acc.0.push(s);
+                    }
+                }
+                acc.2 += 1;
+                acc
+            })
+            .0;
+        index.push(&base);
+        index
+            .iter()
+            .rev()
+            .map(|&a| a)
+            .collect::<Vec<_>>()
+            .join("/")
+            .into()
     }
 
     /// Returns the biggest congregation of links in the html
