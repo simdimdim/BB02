@@ -1,6 +1,6 @@
 #![feature(destructuring_assignment)]
 
-use ehound::update::Manager;
+use ehound::{update::Manager, TEST};
 use graphics::clear;
 use piston_window::{
     AdvancedWindow,
@@ -63,7 +63,10 @@ async fn main() {
         if let Some(button) = e.press_args() {
             if let Button::Keyboard(key) = button {
                 match key {
-                    Key::R => manager.refresh().await,
+                    Key::R => println!("{}", manager.refresh().await),
+                    Key::E => {
+                        manager.add_book(None, TEST.to_string().into()).await
+                    }
                     Key::Q => break,
                     Key::F | Key::F12 => fullscreen(&mut window),
                     _ => {}

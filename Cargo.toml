@@ -27,7 +27,7 @@ http-serde = "1.0.2"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
 serde_with = { version = "1.9.1", features = ["json", "macros"] }
-tokio = { version = "1.6.1", features = ["net", "fs", "macros", "rt-multi-thread"] }
+tokio = { version = "1.6.1", features = ["time", "net", "fs", "macros", "rt-multi-thread"] }
 tokio-serde = "0.8.0"
 # rayon = "1.5.1"
 

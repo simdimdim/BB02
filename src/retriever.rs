@@ -1,7 +1,9 @@
 use crate::{
-    library::{Chapter, Content, Library},
+    library::{Chapter, Content},
     source::Source,
+    CACHE,
 };
+use core::slice::SlicePattern;
 use futures::future::join_all;
 use reqwest::{
     header::{HeaderMap, REFERER},
@@ -9,7 +11,13 @@ use reqwest::{
     Url,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs::File, io::BufReader};
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::BufReader,
+    ops::Deref,
+    path::PathBuf,
+};
 
 impl Default for Retriever {
     fn default() -> Self {
@@ -24,7 +32,6 @@ impl Default for Retriever {
             client:   Client::new(),
             headers:  h,
             location: "/tmp/retriever.json".to_string(),
-            lib:      Library::default(),
         }
     }
 }
@@ -36,14 +43,13 @@ impl Default for Headers {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Retriever {
     headers:  BTreeMap<String, Headers>,
     #[serde(skip)]
     client:   Client,
     #[serde(skip)]
     location: String,
-    lib:      Library,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Headers {
@@ -68,6 +74,7 @@ impl Retriever {
         // TODO: to be investigated
         ch.pos = src.place.0;
         let vis = visual.unwrap_or(src.check_visual().await.unwrap());
+        let path = &PathBuf::from(CACHE).join(&src.title().deref());
         match vis {
             true => {
                 join_all(
@@ -75,19 +82,18 @@ impl Retriever {
                         .await
                         .unwrap_or_default()
                         .iter()
-                        .map(|s| self.content(s, true)),
+                        .map(|s| self.content(s, true, path)),
                 )
                 .await
                 .iter()
                 .cloned()
                 .for_each(|mut content| {
-                    content.0 = src.place.0;
-                    content.1 = content.1.join(src.place.1.to_string());
+                    content.0 = src.place.1;
                     ch.add_content(content);
                 });
             }
             false => {
-                let cnt = self.content(&src.location, false).await;
+                let cnt = self.content(&src.location, false, path).await;
                 ch.add_content(cnt);
             }
         };
@@ -97,20 +103,21 @@ impl Retriever {
 
     pub async fn content(
         &self,
-        s: &String,
+        source: &String,
         visual: bool,
+        path: &PathBuf,
     ) -> Content {
-        let src: Source = self.fetch(s.to_string()).await;
+        let src: Source = self.fetch(source.to_string()).await;
         let mut cnt = Content::default();
         cnt.0 = src.place.0;
-        cnt.1 = cnt.1.join(src.place.1.to_string());
+        cnt.1 = cnt.1.join(path).join(&src.place.1.to_string());
         match visual {
             true => {
                 cnt.save(
                     &self
                         .client
-                        .get(s)
-                        .headers(self.get_headers(s))
+                        .get(source)
+                        .headers(self.get_headers(source))
                         .send()
                         .await
                         .ok()
@@ -118,7 +125,8 @@ impl Retriever {
                         .bytes()
                         .await
                         .ok()
-                        .unwrap(),
+                        .unwrap()
+                        .as_slice(),
                 );
             }
             false => {

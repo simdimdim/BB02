@@ -19,7 +19,10 @@ pub struct Source {
 #[derive(Default, Ord, PartialEq, PartialOrd, Eq, Debug, Clone)]
 pub struct Site {
     pub location: String,
-    pub pred:     String,
+    pub next:     String,
+}
+impl Site {
+    pub async fn delay(&mut self) {}
 }
 
 impl Source {

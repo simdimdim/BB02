@@ -1,4 +1,4 @@
-use crate::source::Source;
+use crate::{source::Source, CACHE};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
@@ -10,9 +10,18 @@ use std::{
     u8,
 };
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+impl Default for Library {
+    fn default() -> Self {
+        Self {
+            books:    BTreeMap::new(),
+            location: PathBuf::from(CACHE).join("library"),
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Library {
-    pub books: BTreeMap<BookName, Book>,
+    pub books:    BTreeMap<BookName, Book>,
+    pub location: PathBuf,
 }
 #[derive(Default, Ord, PartialOrd, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Book {
