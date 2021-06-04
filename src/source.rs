@@ -1,11 +1,10 @@
+use crate::library::BookName;
 use reqwest::{Client, Url};
 use select::{
     document::Document,
     predicate::{Child, Descendant, Name, Or, Text},
 };
 use serde::{Deserialize, Serialize};
-
-use crate::library::BookName;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Source {
@@ -14,7 +13,7 @@ pub struct Source {
     #[serde(skip)]
     doc:          Option<Document>,
     #[serde(skip)]
-    place:        Place,
+    pub place:    (u16, u16, String),
 }
 
 #[derive(Default, Ord, PartialEq, PartialOrd, Eq, Debug, Clone)]
@@ -22,8 +21,6 @@ pub struct Site {
     pub location: String,
     pub pred:     String,
 }
-#[derive(Default, Debug, Clone)]
-pub struct Place(pub u16, pub u16, String);
 
 impl Source {
     pub async fn new(url: String) -> Self {
@@ -32,7 +29,7 @@ impl Source {
             location: url,
             html,
             doc,
-            place: Place::default(),
+            place: Default::default(),
         }
     }
 
@@ -63,17 +60,28 @@ impl Source {
         (Some(html.clone().as_str().into()), Some(html))
     }
 
-    pub async fn refresh(
+    pub async fn refresh_mut(
         &mut self,
         url: Option<String>,
-    ) {
-        (self.doc, self.html) =
-            Self::download(&url.unwrap_or(self.location.clone()), &Client::new())
-                .await;
+    ) -> &mut Self {
+        (self.doc, self.html) = Self::download(
+            &url.clone().unwrap_or(self.location.clone()),
+            &Client::new(),
+        )
+        .await;
+        self.place = get_place(&url.unwrap_or(self.location.clone()));
+        self
     }
 
-    #[allow(dead_code)]
-    fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }
+    pub async fn refresh(&self) -> Self {
+        let (doc, html) = Self::download(&self.location, &Client::new()).await;
+        Self {
+            location: self.location.clone(),
+            doc,
+            html,
+            place: get_place(&self.location),
+        }
+    }
 
     pub async fn check_visual(&self) -> Option<bool> {
         let t = vec!["novel", "royalroad", "comrademao"];
@@ -95,7 +103,7 @@ impl Source {
     }
 
     /// Returns something that looks like a book title
-    pub async fn title(&self) -> BookName {
+    pub fn title(&self) -> BookName {
         self.doc
             .as_ref()
             .unwrap()
@@ -129,36 +137,14 @@ impl Source {
         // .into()
     }
 
-    pub async fn place(&mut self) {
-        let url = self.location.parse::<Url>().expect("Not a Url string.");
-        let segments = url.path_segments().unwrap().rev().collect::<Vec<_>>();
-        self.place = match (
-            &segments
-                .iter()
-                .map(|a| {
-                    a.matches(char::is_numeric)
-                        .collect::<Vec<&str>>()
-                        .join("")
-                        .parse::<u16>()
-                        .unwrap()
-                })
-                .collect::<Vec<u16>>()[..2],
-            segments.iter().last(),
-        ) {
-            ([x @ 0..=9000, y @ 0..=9000], Some(&z)) => {
-                Place(*x, *y, z.to_string())
-            }
-            ([x @ 0..=9000], Some(z)) => Place(0, *x, z.to_string()),
-            ([], Some(z)) => Place(0, 0, z.to_string()),
-            _ => Place::default(),
-        };
-    }
+    pub async fn pos(&self) -> u16 { self.place.1 }
 
-    pub async fn pos(&self) -> u16 { self.place.0 }
+    #[allow(dead_code)]
+    fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }
 
     /// Returns a Source leading the the index page of the chapter
     pub async fn index(&self) -> Self {
-        let url = self.location.parse::<Url>().expect("Not a Url string.");
+        let url = self.location.parse::<Url>().unwrap();
         let base = url.origin().ascii_serialization();
         let mut index = url
             .path_segments()
@@ -208,13 +194,21 @@ impl Source {
     pub async fn next(
         &self,
         pred: &str,
-    ) -> Option<String> {
-        self.doc.as_ref().and_then(|a| {
+    ) -> Option<Source> {
+        let s = self.doc.as_ref().and_then(|a| {
             a.select(Child(Name("a"), Text))
                 .filter(|a| a.text().contains(pred))
-                .map(|a| a.parent().unwrap().attr("href").unwrap().to_string())
+                .map(|a| {
+                    Source::from(
+                        a.parent().unwrap().attr("href").unwrap().to_string(),
+                    )
+                })
                 .next()
-        })
+        });
+        match s {
+            Some(s) => Some(s.refresh().await),
+            None => None,
+        }
     }
 
     /// Returns the text from the children of the <div> with most <p> tags
@@ -253,8 +247,38 @@ impl Source {
             None => vec![],
         }
     }
+}
 
-    pub fn num(&self) -> u16 { todo!() }
+pub fn get_place(url: &String) -> (u16, u16, String) {
+    let url = url.parse::<Url>().expect("Not a Url string.");
+    let segments = url
+        .path_segments()
+        .unwrap()
+        .rev()
+        .filter(|&a| a != "")
+        .collect::<Vec<_>>();
+    let numbers = segments
+        .iter()
+        .map(|a| {
+            a.matches(char::is_numeric)
+                .collect::<Vec<&str>>()
+                .join("")
+                .parse::<u16>()
+                .unwrap_or_default()
+        })
+        .collect::<Vec<u16>>();
+    // TODO: do a better job at finding the index
+    let index_candidate = if segments.len() < 3 {
+        segments.iter().last()
+    } else {
+        segments.iter().rev().skip(1).next()
+    };
+    match (numbers.as_slice(), index_candidate) {
+        ([x @ 0..=9000, y @ 0..=9000, ..], Some(&z)) => (*x, *y, z.to_string()),
+        ([x @ 0..=9000], Some(z)) => (0, *x, z.to_string()),
+        ([], Some(z)) => (0, 0, z.to_string()),
+        _ => (0, 0, "".to_string()),
+    }
 }
 
 impl Eq for Source {}
@@ -284,21 +308,25 @@ impl PartialOrd for Source {
 }
 impl From<String> for Source {
     fn from(url: String) -> Self {
+        url.parse::<Url>().expect("Couldn't parse.");
+        let place = get_place(&url);
         Self {
-            location: url,
-            html:     None,
-            doc:      None,
-            place:    Place::default(),
+            location: url.clone(),
+            html: None,
+            doc: None,
+            place,
         }
     }
 }
 impl From<&String> for Source {
     fn from(url: &String) -> Self {
+        url.parse::<Url>().expect("Couldn't parse.");
+        let place = get_place(&url);
         Self {
             location: url.clone(),
-            html:     None,
-            doc:      None,
-            place:    Place::default(),
+            html: None,
+            doc: None,
+            place,
         }
     }
 }

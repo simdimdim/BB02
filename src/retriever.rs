@@ -54,8 +54,9 @@ struct Headers {
 impl Retriever {
     pub async fn fetch(
         &self,
-        _url: String,
-    ) {
+        url: String,
+    ) -> Source {
+        Source::from(url).refresh().await
     }
 
     pub async fn chapter(
@@ -64,7 +65,8 @@ impl Retriever {
         visual: Option<bool>,
     ) -> Chapter {
         let mut ch = Chapter::default();
-        ch.pos = src.num(); // TODO: make sure this works
+        // TODO: to be investigated
+        ch.pos = src.place.0;
         let vis = visual.unwrap_or(src.check_visual().await.unwrap());
         match vis {
             true => {
@@ -79,7 +81,8 @@ impl Retriever {
                 .iter()
                 .cloned()
                 .for_each(|mut content| {
-                    content.1 = content.1.join(format!("{}", src.num()));
+                    content.0 = src.place.0;
+                    content.1 = content.1.join(src.place.1.to_string());
                     ch.add_content(content);
                 });
             }
@@ -97,10 +100,10 @@ impl Retriever {
         s: &String,
         visual: bool,
     ) -> Content {
-        let src: Source = s.into();
+        let src: Source = self.fetch(s.to_string()).await;
         let mut cnt = Content::default();
-        cnt.0 = src.num().into();
-        cnt.1 = cnt.1.join(format!("{}", src.num()));
+        cnt.0 = src.place.0;
+        cnt.1 = cnt.1.join(src.place.1.to_string());
         match visual {
             true => {
                 cnt.save(
@@ -119,6 +122,7 @@ impl Retriever {
                 );
             }
             false => {
+                println!("{:?}", &src.text().await);
                 let text = src.text().await.unwrap_or_default().join("\n\n");
                 cnt.save(text.as_bytes());
             }

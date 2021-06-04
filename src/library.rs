@@ -75,11 +75,10 @@ impl Library {
         book: BookName,
         site: Option<Source>,
     ) -> &mut Book {
-        if let Some(mut src) = site.clone() {
-            src.refresh(None).await;
+        if let Some(src) = site {
             let b = Book {
                 name: book.clone(),
-                index: src.index().await,
+                index: src.refresh().await.index().await,
                 ..Default::default()
             };
             self.books.entry(book).or_insert(b)
@@ -102,11 +101,7 @@ impl Library {
     ) {
         match (self.books.entry(book), url) {
             (Entry::Occupied(mut e), Some(url)) => {
-                e.get_mut().index = {
-                    let mut source: Source = url.into();
-                    source.refresh(None).await;
-                    source
-                };
+                e.get_mut().index = Source::from(url).refresh().await;
             }
             (Entry::Occupied(mut e), None) => *e.get_mut() = Default::default(),
             _ => {}
@@ -192,7 +187,7 @@ impl Chapter {
         self.content.get(&p)
     }
 
-    pub fn num(&self) -> u16 { self.page.num() }
+    pub fn num(&self) -> u16 { self.page.place.1 }
 
     pub fn seek(
         &mut self,
@@ -222,20 +217,27 @@ impl Content {
         &self,
         data: &[u8],
     ) {
+        let pb = &self.1;
+        std::fs::create_dir_all(pb).unwrap();
+        let pb = &pb.join(format!("{:04}.jpg", self.0));
         File::with_options()
             .write(true)
             .create(true)
-            .open(&self.1.join(format!("{}", self.0)))
+            .open(pb)
             .unwrap()
             .write(data)
             .unwrap();
     }
 
     pub fn file(&self) -> File {
+        let pb = &self.1;
+        std::fs::create_dir_all(pb).unwrap();
+        let pb = &pb.join(format!("{}", self.0));
+        std::fs::create_dir_all(pb).unwrap();
         File::with_options()
             .write(true)
             .create(true)
-            .open(&self.1.join(format!("{}", self.0)))
+            .open(pb)
             .unwrap()
     }
 }

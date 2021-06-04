@@ -21,7 +21,7 @@ impl Manager {
     ) {
         let mut book = Book::default();
         (book.name, book.index, book.pos) = (
-            bookname.unwrap_or(source.title().await),
+            bookname.unwrap_or(source.title()),
             source.index().await,
             source.pos().await,
         );
