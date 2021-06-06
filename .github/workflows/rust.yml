@@ -26,4 +26,24 @@ jobs:
           rust-version: ${{ matrix.rust }}
       - name: Build
         run: |
+          # cargo install cargo-vcpkg
+          # cargo vcpkg build
+          cargo build
+  windows-latest:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        rust: [nightly]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install_dependencies
+        run: |
+          vcpkg install sdl2
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+      - name: Build
+        run: |
+          cargo install cargo-vcpkg
+          cargo vcpkg build
           cargo build

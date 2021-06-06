@@ -107,6 +107,11 @@ impl Source {
             Self::download(&url.clone().unwrap_or(self.location.clone()), None)
                 .await;
         self.place = get_place(&url.unwrap_or(self.location.clone()));
+        self.place.2 = if self.check_visual().unwrap() {
+            "manga/".to_string()
+        } else {
+            "novel/".to_string()
+        } + self.place.2.as_str();
         self.default = true;
         self
     }
@@ -122,7 +127,7 @@ impl Source {
         }
     }
 
-    pub async fn check_visual(&self) -> Option<bool> {
+    pub fn check_visual(&self) -> Option<bool> {
         let t = vec!["novel", "royalroad", "comrademao"];
         let p = vec!["manga", "hentai", "pururin", "luscious"];
         let f = |s: &&str| -> bool {

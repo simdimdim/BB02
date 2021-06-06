@@ -31,7 +31,7 @@ impl Default for Retriever {
         Self {
             client:   Client::new(),
             headers:  h,
-            location: "/tmp/retriever.json".to_string(),
+            location: CACHE.to_string() + "/retriever.json",
         }
     }
 }
@@ -73,7 +73,7 @@ impl Retriever {
         let mut ch = Chapter::default();
         // TODO: to be investigated
         ch.pos = src.place.0;
-        let vis = visual.unwrap_or(src.check_visual().await.unwrap());
+        let vis = visual.unwrap_or(src.check_visual().unwrap());
         let path = &PathBuf::from(CACHE).join(&src.title().deref());
         match vis {
             true => {

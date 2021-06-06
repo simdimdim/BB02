@@ -118,13 +118,13 @@ impl Library {
     }
 }
 impl Book {
-    pub async fn set_visual(
+    pub fn set_visual(
         &mut self,
         visual: Option<bool>,
     ) {
         match visual {
             Some(_) => self.visual = visual,
-            None => self.visual = self.index.check_visual().await,
+            None => self.visual = self.index.check_visual(),
         }
     }
 

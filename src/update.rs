@@ -31,7 +31,7 @@ impl Manager {
             source.index().await,
             source.pos().await,
         );
-        book.set_visual(None).await;
+        book.set_visual(None);
         let book = Arc::new(Mutex::new(book));
 
         let chapters: Vec<Chapter> = join_all(

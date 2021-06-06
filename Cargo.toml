@@ -4,20 +4,21 @@ default-run = "main"
 edition = "2018"
 name = "ehound"
 resolver = "2"
-version = "0.1.0"
+version = "0.1.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [package.metadata.vcpkg]
 branch = "master"
 git = "https://github.com/microsoft/vcpkg"
 
+[package.metadata.vcpkg.target]
+x86_64-pc-windows-msvc = {triplet = "x64-windows-static-md"}
+# x86_64-unknown-linux-gnu = {install = ["sdl2"]}
+
 [dependencies]
-gfx = "0.18.2"
-piston2d-gfx_graphics = "0.73.0"
-piston2d-graphics = "0.40.0"
-piston_window = { version = "0.120.0", default-features = false }
-pistoncore-window = "0.47.0"
-shader_version = "0.7.0"
+# gfx = "0.18.2"
+# piston2d-gfx_graphics = "0.73.0"
+# piston2d-graphics = "0.40.0"
 
 # itertools = "0.10.0"
 reqwest = { version = "0.11.3", features = ["cookies", "stream"] }
@@ -31,8 +32,14 @@ serde_json = "1.0.64"
 serde_with = { version = "1.9.1", features = ["json", "macros"] }
 tokio = { version = "1.6.1", features = ["time", "net", "fs", "macros", "rt-multi-thread"] }
 tokio-serde = "0.8.0"
-sdl2 = "0.34.5"
-#  features = ["use-vcpkg", "static-link"]
+
+[dependencies.piston_window]
+default-features = false
+version = "0.120.0"
+
+[dependencies.sdl2]
+features = ["bundled", "use-vcpkg"]
+version = "0.34.5"
 
 [dependencies.pistoncore-sdl2_window]
 git = "https://github.com/PistonDevelopers/sdl2_window"

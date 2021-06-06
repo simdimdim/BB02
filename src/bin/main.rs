@@ -1,8 +1,8 @@
 #![feature(destructuring_assignment)]
 
 use ehound::{update::Manager, TEST};
-use graphics::clear;
 use piston_window::{
+    clear,
     AdvancedWindow,
     Button,
     EventLoop,
@@ -24,12 +24,11 @@ use sdl2_window::Sdl2Window;
 #[tokio::main]
 async fn main() {
     let gl = OpenGL::V4_5;
-    // let gl = Version::vulkan(1, 2);
     let mut window: PistonWindow<Sdl2Window> =
         WindowSettings::new("Downloader", [1., 1.])
             .exit_on_esc(true)
             .samples(16)
-            .vsync(false)
+            .vsync(true)
             .graphics_api(gl)
             .build()
             .expect("Couldn't create a window");

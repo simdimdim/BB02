@@ -12,7 +12,7 @@ pub static CACHE: &str = "./.cache";
 pub static TEST: &str = "https://readmanganato.com/manga-la988983";
 
 #[tokio::test]
-async fn get_title() {
+async fn manager_refresh() {
     use crate::update::Manager;
 
     let mut manager = Manager::default();

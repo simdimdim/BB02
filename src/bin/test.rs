@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+
 use ehound::{update::Manager, TEST};
 use reqwest::Client;
 use select::{document::Document, predicate::*};
