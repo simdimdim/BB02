@@ -7,14 +7,16 @@ resolver = "2"
 version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.vcpkg]
+branch = "master"
+git = "https://github.com/microsoft/vcpkg"
+
 [dependencies]
 gfx = "0.18.2"
-gfx_device_gl = "0.16.2"
 piston2d-gfx_graphics = "0.73.0"
 piston2d-graphics = "0.40.0"
 piston_window = { version = "0.120.0", default-features = false }
 pistoncore-window = "0.47.0"
-sdl2 = "0.34.5"
 shader_version = "0.7.0"
 
 # itertools = "0.10.0"
@@ -29,7 +31,8 @@ serde_json = "1.0.64"
 serde_with = { version = "1.9.1", features = ["json", "macros"] }
 tokio = { version = "1.6.1", features = ["time", "net", "fs", "macros", "rt-multi-thread"] }
 tokio-serde = "0.8.0"
-# rayon = "1.5.1"
+sdl2 = "0.34.5"
+#  features = ["use-vcpkg", "static-link"]
 
 [dependencies.pistoncore-sdl2_window]
 git = "https://github.com/PistonDevelopers/sdl2_window"

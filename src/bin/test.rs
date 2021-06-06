@@ -1,9 +1,7 @@
 #![allow(unused_imports)]
-
+use ehound::{update::Manager, TEST};
 use reqwest::Client;
 use select::{document::Document, predicate::*};
-
-pub static TEST: &str = "https://readmanganato.com/manga-la988983";
 
 async fn _download() {
     let html = Client::new()
@@ -22,6 +20,7 @@ async fn _download() {
 #[tokio::main]
 async fn main() {
     // _download().await;
+
     let html = std::fs::read_to_string("example.html").unwrap();
     let doc = Document::from(html.as_str());
     dbg!(

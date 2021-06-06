@@ -9,4 +9,13 @@ pub mod source;
 pub mod update;
 
 pub static CACHE: &str = "./.cache";
-pub static TEST: &str = "https://readmanganato.com/manga-jd986360/chapter-30";
+pub static TEST: &str = "https://readmanganato.com/manga-la988983";
+
+#[tokio::test]
+async fn get_title() {
+    use crate::update::Manager;
+
+    let mut manager = Manager::default();
+    manager.add_book(None, TEST.to_string().into()).await;
+    println!("{}", manager.refresh().await);
+}

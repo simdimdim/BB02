@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::library::BookName;
 use reqwest::{Client, Url};
 use select::{
@@ -5,6 +7,16 @@ use select::{
     predicate::{Child, Descendant, Name, Or, Text},
 };
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
+
+impl Default for SiteInfo {
+    fn default() -> Self {
+        Self {
+            next: None,
+            time: Instant::now(),
+        }
+    }
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Source {
@@ -14,25 +26,42 @@ pub struct Source {
     doc:          Option<Document>,
     #[serde(skip)]
     pub place:    (u16, u16, String),
+    #[serde(skip)]
+    default:      bool,
 }
 
-#[derive(Default, Ord, PartialEq, PartialOrd, Eq, Debug, Clone)]
-pub struct Site {
-    pub location: String,
-    pub next:     String,
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct SiteInfo {
+    pub next: Option<String>,
+    pub time: Instant,
 }
-impl Site {
-    pub async fn delay(&mut self) {}
+
+impl SiteInfo {
+    pub fn new(_site: &Source) -> Self {
+        Self {
+            next: None,
+            time: Instant::now(),
+        }
+    }
+
+    pub async fn delay(&mut self) {
+        let until = self.time + Duration::from_secs_f32(2.);
+        if until > Instant::now() {
+            tokio::time::sleep_until(until).await;
+        }
+        self.time = until;
+    }
 }
 
 impl Source {
     pub async fn new(url: String) -> Self {
-        let (doc, html) = Self::download(&url, &Client::new()).await;
+        let (doc, html) = Self::download(&url, None).await;
         Self {
             location: url,
             html,
             doc,
             place: Default::default(),
+            default: false,
         }
     }
 
@@ -41,48 +70,55 @@ impl Source {
         visual: bool,
     ) -> Option<Vec<String>> {
         match visual {
-            true => self.images_batch().await,
-            false => self.text().await,
+            true => self.images_batch(),
+            false => self.text(),
         }
     }
 
+    #[inline]
     pub async fn download(
         url: &String,
-        client: &Client,
+        client: Option<&Client>,
     ) -> (Option<Document>, Option<String>) {
         let html = client
+            .unwrap_or(&Client::new())
             .get(url)
             .send()
             .await
-            .ok()
             .unwrap()
             .text()
             .await
-            .ok()
             .unwrap();
         (Some(html.clone().as_str().into()), Some(html))
+    }
+
+    pub async fn fill(&mut self) {
+        (!self.default)
+            .then(|| self.refresh_mut(None))
+            .unwrap()
+            .await;
     }
 
     pub async fn refresh_mut(
         &mut self,
         url: Option<String>,
     ) -> &mut Self {
-        (self.doc, self.html) = Self::download(
-            &url.clone().unwrap_or(self.location.clone()),
-            &Client::new(),
-        )
-        .await;
+        (self.doc, self.html) =
+            Self::download(&url.clone().unwrap_or(self.location.clone()), None)
+                .await;
         self.place = get_place(&url.unwrap_or(self.location.clone()));
+        self.default = true;
         self
     }
 
     pub async fn refresh(&self) -> Self {
-        let (doc, html) = Self::download(&self.location, &Client::new()).await;
+        let (doc, html) = Self::download(&self.location, None).await;
         Self {
             location: self.location.clone(),
             doc,
             html,
             place: get_place(&self.location),
+            default: true,
         }
     }
 
@@ -98,30 +134,38 @@ impl Source {
                 .contains(s)
         };
         Some(match (t.iter().any(|s| f(s)), p.iter().any(|s| f(s))) {
-            (true, true) => self.text().await.unwrap().len() < 20,
+            (true, true) => self.text().unwrap().len() < 20,
             (true, false) => false,
             (false, true) => true,
-            (false, false) => self.text().await.unwrap().len() < 20,
+            (false, false) => self.text().unwrap().len() < 20,
         })
     }
 
     /// Returns something that looks like a book title
     pub fn title(&self) -> BookName {
-        self.doc
+        println!("{}", self.doc.is_some());
+        let title = self
+            .doc
             .as_ref()
-            .unwrap()
+            .expect("HTML not found.")
             .select(Name("title"))
             .into_selection()
             .first()
             .unwrap()
-            .text()
-            .split(" Chapter")
-            .filter(|&a| a != "")
-            .collect::<Vec<_>>()
-            .first()
-            .unwrap()
-            .to_string()
-            .into()
+            .text();
+
+        if title.contains(" Chapter") {
+            title
+                .split(" Chapter")
+                .filter(|&a| a != "")
+                .collect::<Vec<_>>()
+                .first()
+                .unwrap()
+                .to_string()
+        } else {
+            title
+        }
+        .into()
         // .to_ascii_lowercase()
         // .split(" chapter")
         // .filter(|&a| a != "")
@@ -215,7 +259,7 @@ impl Source {
     }
 
     /// Returns the text from the children of the <div> with most <p> tags
-    pub async fn text(&self) -> Option<Vec<String>> {
+    pub fn text(&self) -> Option<Vec<String>> {
         self.doc.as_ref().map(|a| {
             // TODO: Improve by par_map()?
             a.select(Child(Name("div"), Name("p")))
@@ -230,7 +274,7 @@ impl Source {
     }
 
     /// similar to index() return the source addr of the div with most <img>
-    pub async fn images_batch(&self) -> Option<Vec<String>> {
+    pub fn images_batch(&self) -> Option<Vec<String>> {
         self.doc.as_ref().map(|a| {
             a.select(Child(Name("div"), Name("img")))
                 .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
@@ -249,6 +293,15 @@ impl Source {
             Some(_d) => vec![],
             None => vec![],
         }
+    }
+
+    pub fn domain(&self) -> String {
+        self.location
+            .parse::<Url>()
+            .unwrap()
+            .domain()
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -318,6 +371,7 @@ impl From<String> for Source {
             html: None,
             doc: None,
             place,
+            default: false,
         }
     }
 }
@@ -330,6 +384,7 @@ impl From<&String> for Source {
             html: None,
             doc: None,
             place,
+            default: false,
         }
     }
 }

@@ -24,6 +24,7 @@ use sdl2_window::Sdl2Window;
 #[tokio::main]
 async fn main() {
     let gl = OpenGL::V4_5;
+    // let gl = Version::vulkan(1, 2);
     let mut window: PistonWindow<Sdl2Window> =
         WindowSettings::new("Downloader", [1., 1.])
             .exit_on_esc(true)
@@ -31,8 +32,7 @@ async fn main() {
             .vsync(false)
             .graphics_api(gl)
             .build()
-            .ok()
-            .unwrap();
+            .expect("Couldn't create a window");
     window.set_capture_cursor(false);
     window.set_max_fps(60);
     window.set_ups(30);

@@ -79,7 +79,6 @@ impl Retriever {
             true => {
                 join_all(
                     src.images_batch()
-                        .await
                         .unwrap_or_default()
                         .iter()
                         .map(|s| self.content(s, true, path)),
@@ -130,8 +129,8 @@ impl Retriever {
                 );
             }
             false => {
-                println!("{:?}", &src.text().await);
-                let text = src.text().await.unwrap_or_default().join("\n\n");
+                println!("{:?}", &src.text());
+                let text = src.text().unwrap_or_default().join("\n\n");
                 cnt.save(text.as_bytes());
             }
         }
