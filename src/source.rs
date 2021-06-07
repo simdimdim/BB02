@@ -37,7 +37,7 @@ pub struct SiteInfo {
 }
 
 impl SiteInfo {
-    pub fn new(_site: &Source) -> Self {
+    pub fn new() -> Self {
         Self {
             next: None,
             time: Instant::now(),
@@ -55,14 +55,9 @@ impl SiteInfo {
 
 impl Source {
     pub async fn new(url: String) -> Self {
-        let (doc, html) = Self::download(&url, None).await;
-        Self {
-            location: url,
-            html,
-            doc,
-            place: Default::default(),
-            default: false,
-        }
+        let mut source = Source::default();
+        source.refresh_mut(Some(url)).await;
+        source
     }
 
     pub async fn get(
@@ -99,6 +94,15 @@ impl Source {
             .await;
     }
 
+    fn change_place(&self) -> String {
+        let s = if self.check_visual().unwrap() {
+            "manga/".to_string()
+        } else {
+            "novel/".to_string()
+        } + self.place.2.as_str();
+        s
+    }
+
     pub async fn refresh_mut(
         &mut self,
         url: Option<String>,
@@ -107,22 +111,20 @@ impl Source {
             Self::download(&url.clone().unwrap_or(self.location.clone()), None)
                 .await;
         self.place = get_place(&url.unwrap_or(self.location.clone()));
-        self.place.2 = if self.check_visual().unwrap() {
-            "manga/".to_string()
-        } else {
-            "novel/".to_string()
-        } + self.place.2.as_str();
+        self.place.2 = self.change_place();
         self.default = true;
         self
     }
 
     pub async fn refresh(&self) -> Self {
         let (doc, html) = Self::download(&self.location, None).await;
+        let mut place = get_place(&self.location);
+        place.2 = self.change_place();
         Self {
             location: self.location.clone(),
             doc,
             html,
-            place: get_place(&self.location),
+            place,
             default: true,
         }
     }
@@ -189,7 +191,7 @@ impl Source {
         // .into()
     }
 
-    pub async fn pos(&self) -> u16 { self.place.1 }
+    pub fn pos(&self) -> u16 { self.place.1 }
 
     #[allow(dead_code)]
     fn find_index(&self) { self.location.parse::<Url>().unwrap().path(); }

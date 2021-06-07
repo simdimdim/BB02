@@ -8,8 +8,8 @@ pub mod retriever;
 pub mod source;
 pub mod update;
 
-pub static CACHE: &str = "./.cache";
-pub static TEST: &str = "https://readmanganato.com/manga-la988983";
+pub const CACHE: &str = "./.cache";
+pub const TEST: &str = "https://readmanganato.com/manga-la988983";
 
 #[tokio::test]
 async fn manager_refresh() {

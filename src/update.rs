@@ -1,10 +1,13 @@
 use crate::{
-    library::{Book, BookName, Chapter, Library},
+    library::{Book, BookName, Library},
     retriever::Retriever,
     source::{SiteInfo, Source},
 };
 use futures::future::join_all;
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 #[derive(Default, Clone, Debug)]
@@ -12,46 +15,45 @@ pub struct Manager {
     dl:    Retriever,
     lib:   Library,
     sites: Arc<Mutex<BTreeMap<String, SiteInfo>>>,
+    preds: HashMap<String, String>,
 }
 impl Manager {
     pub async fn add_book(
         &mut self,
         bookname: Option<BookName>,
-        src: Source,
+        source: Source,
     ) {
-        let source = src.refresh().await;
-        let t = bookname.clone().unwrap_or(source.title());
-        self.sites
-            .lock()
-            .await
-            .insert(t.clone().to_string(), SiteInfo::new(&source));
+        let mut src = source.refresh().await;
+        let bn = bookname.clone().unwrap_or(src.title()).to_string();
+        self.sites.lock().await.insert(bn.clone(), SiteInfo::new());
+        src = src.index().await.refresh().await;
         let mut book = Book::default();
-        (book.name, book.index, book.pos) = (
-            bookname.unwrap_or(source.title()),
-            source.index().await,
-            source.pos().await,
-        );
+        (book.name, book.index, book.pos) = (bn.into(), src.clone(), src.pos());
         book.set_visual(None);
         let book = Arc::new(Mutex::new(book));
-
-        let chapters: Vec<Chapter> = join_all(
-            source
-                .chapters()
+        for ch in join_all(
+            src.chapters()
                 .await
                 .unwrap_or_default()
                 .iter()
                 .cloned()
                 .map(|url| async {
-                    let bn = Source::new(url).await;
-                    let timerkey = bn.domain();
-                    self.sites.lock().await.entry(timerkey.clone()).or_default();
-                    self.clone().delay(&timerkey).await;
-                    self.dl.chapter(bn, None).await
+                    let bs = Source::new(url).await;
+                    let domain = bs.domain();
+                    self.sites
+                        .lock()
+                        .await
+                        .entry(domain.clone())
+                        .or_default()
+                        .delay()
+                        .await;
+                    self.dl.chapter(bs, None).await
                 }),
         )
-        .await;
-        // join_all(chapters.iter_mut().map(|ch| ch.add_content(content))).await;
-        for ch in chapters.iter().cloned() {
+        .await
+        .iter()
+        .cloned()
+        {
             let mut book = book.lock().await;
             book.add_chapter(ch).await;
         }
@@ -66,19 +68,15 @@ impl Manager {
             .map(|(a, b)| (a.clone(), b.clone()));
         let newchps = join_all(iter.map(|(a, b)| async {
             let (name, book) = (a, b);
-            let pred = self
-                .clone()
-                .delay(&name)
-                .await
-                .unwrap_or("Next".to_string());
+            let pred = self.pred(&book.index);
             let mut sources = vec![];
             let mut source = book.index.next(&pred).await;
             while let Some(src) = source {
-                self.clone().delay(&name).await;
                 if sources.contains(&src) {
                     break;
                 };
                 sources.push(src.clone());
+                self.clone().delay(&name).await;
                 source = src.next(&pred).await;
             }
             let iter2 = sources.iter().cloned().map(|a| a.clone());
@@ -102,9 +100,19 @@ impl Manager {
         name: &String,
     ) -> Option<String> {
         let mut site = self.sites.lock().await;
-        dbg!(&site);
         let s = site.get_mut(name).unwrap();
         s.delay().await;
         s.next.clone()
+    }
+
+    pub fn pred(
+        &self,
+        source: &Source,
+    ) -> String {
+        let default = "Next";
+        self.preds
+            .get(&source.domain())
+            .cloned()
+            .unwrap_or(default.to_string())
     }
 }

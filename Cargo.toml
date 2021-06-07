@@ -16,30 +16,30 @@ x86_64-pc-windows-msvc = {triplet = "x64-windows-static-md"}
 # x86_64-unknown-linux-gnu = {install = ["sdl2"]}
 
 [dependencies]
-# gfx = "0.18.2"
-# piston2d-gfx_graphics = "0.73.0"
 # piston2d-graphics = "0.40.0"
 
 # itertools = "0.10.0"
-reqwest = { version = "0.11.3", features = ["cookies", "stream"] }
-select = "0.6.0-alpha.1"
-url = "2.2.2"
-
 futures = "0.3.15"
 http-serde = "1.0.2"
+reqwest = { version = "0.11.3", features = ["cookies", "stream"] }
+select = "0.6.0-alpha.1"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
 serde_with = { version = "1.9.1", features = ["json", "macros"] }
 tokio = { version = "1.6.1", features = ["time", "net", "fs", "macros", "rt-multi-thread"] }
 tokio-serde = "0.8.0"
 
+[target.'cfg(unix)'.dependencies.sdl2]
+features = []
+version = "0.34.5"
+
+[target.'cfg(not(windows))'.dependencies.sdl2]
+features = ["bundled", "use-vcpkg"]
+version = "0.34.5"
+
 [dependencies.piston_window]
 default-features = false
 version = "0.120.0"
-
-[dependencies.sdl2]
-features = ["bundled", "use-vcpkg"]
-version = "0.34.5"
 
 [dependencies.pistoncore-sdl2_window]
 git = "https://github.com/PistonDevelopers/sdl2_window"
