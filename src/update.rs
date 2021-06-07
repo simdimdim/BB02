@@ -18,11 +18,7 @@ pub struct Manager {
     preds: HashMap<String, String>,
 }
 impl Manager {
-    pub async fn add_book(
-        &mut self,
-        bookname: Option<BookName>,
-        source: Source,
-    ) {
+    pub async fn add_book(&mut self, bookname: Option<BookName>, source: Source) {
         let mut src = source.refresh().await;
         let bn = bookname.clone().unwrap_or(src.title()).to_string();
         self.sites.lock().await.insert(bn.clone(), SiteInfo::new());
@@ -95,20 +91,14 @@ impl Manager {
         })
     }
 
-    pub async fn delay(
-        &mut self,
-        name: &String,
-    ) -> Option<String> {
+    pub async fn delay(&mut self, name: &String) -> Option<String> {
         let mut site = self.sites.lock().await;
         let s = site.get_mut(name).unwrap();
         s.delay().await;
         s.next.clone()
     }
 
-    pub fn pred(
-        &self,
-        source: &Source,
-    ) -> String {
+    pub fn pred(&self, source: &Source) -> String {
         let default = "Next";
         self.preds
             .get(&source.domain())

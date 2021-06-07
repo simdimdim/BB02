@@ -60,18 +60,11 @@ pub struct BookName(String);
 pub struct Content(pub u16, pub PathBuf);
 
 impl Library {
-    pub async fn get(
-        &self,
-        book: &BookName,
-    ) -> Option<&Book> {
+    pub async fn get(&self, book: &BookName) -> Option<&Book> {
         self.books.get(book)
     }
 
-    pub fn rename_book(
-        &mut self,
-        old: &BookName,
-        new_name: BookName,
-    ) {
+    pub fn rename_book(&mut self, old: &BookName, new_name: BookName) {
         if self.books.contains_key(old) {
             let mut book = self.books.remove(old).unwrap();
             book.name = new_name.clone();
@@ -80,9 +73,7 @@ impl Library {
     }
 
     pub async fn add_book(
-        &mut self,
-        book: BookName,
-        site: Option<Source>,
+        &mut self, book: BookName, site: Option<Source>,
     ) -> &mut Book {
         if let Some(src) = site {
             let b = Book {
@@ -96,18 +87,11 @@ impl Library {
         }
     }
 
-    pub async fn remove_book(
-        &mut self,
-        book: BookName,
-    ) {
+    pub async fn remove_book(&mut self, book: BookName) {
         self.books.remove(&book);
     }
 
-    pub async fn set_source(
-        &mut self,
-        book: BookName,
-        url: Option<String>,
-    ) {
+    pub async fn set_source(&mut self, book: BookName, url: Option<String>) {
         match (self.books.entry(book), url) {
             (Entry::Occupied(mut e), Some(url)) => {
                 e.get_mut().index = Source::from(url).refresh().await;
@@ -118,10 +102,7 @@ impl Library {
     }
 }
 impl Book {
-    pub fn set_visual(
-        &mut self,
-        visual: Option<bool>,
-    ) {
+    pub fn set_visual(&mut self, visual: Option<bool>) {
         match visual {
             Some(_) => self.visual = visual,
             None => self.visual = self.index.check_visual(),
@@ -130,31 +111,17 @@ impl Book {
 
     pub fn visual(&self) -> Option<bool> { self.visual }
 
-    pub async fn add_chapter(
-        &mut self,
-        ch: Chapter,
-    ) -> Option<Chapter> {
+    pub async fn add_chapter(&mut self, ch: Chapter) -> Option<Chapter> {
         self.chapters.insert(ch.num(), ch)
     }
 
-    pub fn remove_chapter(
-        &mut self,
-        ch: Chapter,
-    ) -> Option<Chapter> {
+    pub fn remove_chapter(&mut self, ch: Chapter) -> Option<Chapter> {
         self.chapters.remove(&ch.num())
     }
 
-    pub fn get(
-        &mut self,
-        ch: u16,
-    ) -> Option<&Chapter> {
-        self.chapters.get(&ch)
-    }
+    pub fn get(&mut self, ch: u16) -> Option<&Chapter> { self.chapters.get(&ch) }
 
-    pub fn seek(
-        &mut self,
-        chapter: u16,
-    ) -> Option<Chapter> {
+    pub fn seek(&mut self, chapter: u16) -> Option<Chapter> {
         let e = self.chapters.get(&chapter).cloned();
         e.is_some().then(|| self.pos = chapter);
         e
@@ -175,33 +142,19 @@ impl Book {
     }
 }
 impl Chapter {
-    pub fn add_content(
-        &mut self,
-        content: Content,
-    ) -> Option<Content> {
+    pub fn add_content(&mut self, content: Content) -> Option<Content> {
         self.content.insert(content.0, content)
     }
 
-    pub fn remove_content(
-        &mut self,
-        content: Content,
-    ) -> Option<Content> {
+    pub fn remove_content(&mut self, content: Content) -> Option<Content> {
         self.content.remove(&content.0)
     }
 
-    pub fn get(
-        &mut self,
-        p: u16,
-    ) -> Option<&Content> {
-        self.content.get(&p)
-    }
+    pub fn get(&mut self, p: u16) -> Option<&Content> { self.content.get(&p) }
 
     pub fn num(&self) -> u16 { self.page.place.1 }
 
-    pub fn seek(
-        &mut self,
-        page: u16,
-    ) -> Option<Content> {
+    pub fn seek(&mut self, page: u16) -> Option<Content> {
         let e = self.content.get(&page).cloned();
         e.is_some().then(|| self.pos = page);
         e
@@ -222,10 +175,7 @@ impl Chapter {
     }
 }
 impl Content {
-    pub fn save(
-        &self,
-        data: &[u8],
-    ) {
+    pub fn save(&self, data: &[u8]) {
         let pb = &self.1;
         std::fs::create_dir_all(pb).unwrap();
         let pb = &pb.join(format!("{:04}.jpg", self.0));
@@ -252,20 +202,10 @@ impl Content {
 }
 
 impl PartialEq for Book {
-    fn eq(
-        &self,
-        other: &Self,
-    ) -> bool {
-        self.name == other.name
-    }
+    fn eq(&self, other: &Self) -> bool { self.name == other.name }
 }
 impl Hash for Book {
-    fn hash<H: Hasher>(
-        &self,
-        state: &mut H,
-    ) {
-        self.name.hash(state);
-    }
+    fn hash<H: Hasher>(&self, state: &mut H) { self.name.hash(state); }
 }
 
 impl From<String> for Book {

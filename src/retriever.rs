@@ -58,18 +58,11 @@ struct Headers {
 }
 
 impl Retriever {
-    pub async fn fetch(
-        &self,
-        url: String,
-    ) -> Source {
+    pub async fn fetch(&self, url: String) -> Source {
         Source::from(url).refresh().await
     }
 
-    pub async fn chapter(
-        &self,
-        src: Source,
-        visual: Option<bool>,
-    ) -> Chapter {
+    pub async fn chapter(&self, src: Source, visual: Option<bool>) -> Chapter {
         let mut ch = Chapter::default();
         // TODO: to be investigated
         ch.pos = src.place.0;
@@ -101,10 +94,7 @@ impl Retriever {
     }
 
     pub async fn content(
-        &self,
-        source: &String,
-        visual: bool,
-        path: &PathBuf,
+        &self, source: &String, visual: bool, path: &PathBuf,
     ) -> Content {
         let src: Source = self.fetch(source.to_string()).await;
         let mut cnt = Content::default();
@@ -155,10 +145,7 @@ impl Retriever {
         self.headers = h;
     }
 
-    fn get_headers(
-        &self,
-        src: &String,
-    ) -> HeaderMap {
+    fn get_headers(&self, src: &String) -> HeaderMap {
         self.headers
             .get(src.parse::<Url>().unwrap().domain().unwrap())
             .cloned()

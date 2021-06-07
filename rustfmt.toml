@@ -15,13 +15,14 @@ overflow_delimited_expr = true
 struct_field_align_threshold = 30
 
 imports_layout = "HorizontalVertical"
-merge_imports = true
+imports_granularity="Crate"
 reorder_impl_items = true
 reorder_imports = true
 reorder_modules = true
 
-fn_args_layout = "Vertical"
-fn_params_layout = "Compressed"
+# fn_args_layout = "Vertical"
+fn_args_layout = "Compressed"
+# fn_params_layout = "Compressed" # #4163
 fn_single_line = true
 force_multiline_blocks = false
 

@@ -25,15 +25,15 @@ reqwest = { version = "0.11.3", features = ["cookies", "stream"] }
 select = "0.6.0-alpha.1"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
-serde_with = { version = "1.9.1", features = ["json", "macros"] }
+serde_with = { version = "1.9.2", features = ["json", "macros"] }
 tokio = { version = "1.6.1", features = ["time", "net", "fs", "macros", "rt-multi-thread"] }
 tokio-serde = "0.8.0"
 
-[target.'cfg(unix)'.dependencies.sdl2]
+[target.'cfg(linux)'.dependencies.sdl2]
 features = []
 version = "0.34.5"
 
-[target.'cfg(not(windows))'.dependencies.sdl2]
+[target.'cfg(not(linux))'.dependencies.sdl2]
 features = ["bundled", "use-vcpkg"]
 version = "0.34.5"
 

@@ -60,10 +60,7 @@ impl Source {
         source
     }
 
-    pub async fn get(
-        &self,
-        visual: bool,
-    ) -> Option<Vec<String>> {
+    pub async fn get(&self, visual: bool) -> Option<Vec<String>> {
         match visual {
             true => self.images_batch(),
             false => self.text(),
@@ -72,8 +69,7 @@ impl Source {
 
     #[inline]
     pub async fn download(
-        url: &String,
-        client: Option<&Client>,
+        url: &String, client: Option<&Client>,
     ) -> (Option<Document>, Option<String>) {
         let html = client
             .unwrap_or(&Client::new())
@@ -103,10 +99,7 @@ impl Source {
         s
     }
 
-    pub async fn refresh_mut(
-        &mut self,
-        url: Option<String>,
-    ) -> &mut Self {
+    pub async fn refresh_mut(&mut self, url: Option<String>) -> &mut Self {
         (self.doc, self.html) =
             Self::download(&url.clone().unwrap_or(self.location.clone()), None)
                 .await;
@@ -245,10 +238,7 @@ impl Source {
         links */
     }
 
-    pub async fn next(
-        &self,
-        pred: &str,
-    ) -> Option<Source> {
+    pub async fn next(&self, pred: &str) -> Option<Source> {
         let s = self.doc.as_ref().and_then(|a| {
             a.select(Child(Name("a"), Text))
                 .filter(|a| a.text().contains(pred))
@@ -346,26 +336,17 @@ pub fn get_place(url: &String) -> (u16, u16, String) {
 
 impl Eq for Source {}
 impl PartialEq for Source {
-    fn eq(
-        &self,
-        other: &Self,
-    ) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.location == other.location && self.html == other.html
     }
 }
 impl Ord for Source {
-    fn cmp(
-        &self,
-        other: &Self,
-    ) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.location.cmp(&other.location)
     }
 }
 impl PartialOrd for Source {
-    fn partial_cmp(
-        &self,
-        other: &Self,
-    ) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.location.cmp(&other.location))
     }
 }
